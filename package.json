@@ -1,0 +1,23 @@
+{
+  "name": "sql-partial-dump",
+  "version": "0.0.1",
+  "description": "Partial dumper for SQL",
+  "main": "index.js",
+  "bin": {
+    "sql-partial-dump": "./cli.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "dump",
+    "sql"
+  ],
+  "author": "Simon Robert",
+  "license": "MIT",
+  "dependencies": {
+    "lodash": "^4.17.11",
+    "mssql": "^4.2.2",
+    "mysql": "^2.16.0"
+  }
+}
