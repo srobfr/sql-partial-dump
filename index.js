@@ -97,5 +97,5 @@ module.exports = async function (config, outStream) {
   // Fin de la connection.
   await driver.close(pool);
 
-  if (config.postDumpQueries) await output(config.postDumpQueries.join(';\n'));
+  if (config.postDumpQueries) await output(config.postDumpQueries.map(q => q.replace(/[\s;]*$/, ';')).join('\n'));
 };
