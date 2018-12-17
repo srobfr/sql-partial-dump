@@ -62,6 +62,15 @@ module.exports = async function (config, outStream) {
   const alreadyDoneRelationQueries = new Set();
   const alreadyDoneInsertions = new Set();
 
+  /**
+   * Returns a string unique for this entity.
+   * @param entity
+   */
+  function hashEntity(entity) {
+    if (entity.data.id) return entity.table + entity.data.id;
+    return JSON.stringify(entity);
+  }
+
   async function extractEntitiesFromQueries(queries) {
     for (const query of queries) {
       const entities = await driver.extractEntitiesFromQuery(pool, query);
@@ -82,11 +91,13 @@ module.exports = async function (config, outStream) {
           }
         }
 
+        const entityHash = hashEntity(entity);
+        if (alreadyDoneInsertions.has(entityHash)) continue;
+        alreadyDoneInsertions.add(entityHash);
+
         const patchedEntityData = _.clone(entity.data);
         for (const patch of patchesByTable[entity.table] || []) patch(patchedEntityData);
         const insertSql = targetDriver.generateInsert({table: entity.table, data: patchedEntityData});
-        if (alreadyDoneInsertions.has(insertSql)) continue;
-        alreadyDoneInsertions.add(insertSql);
         await output(insertSql);
       }
     }
