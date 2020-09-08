@@ -3,7 +3,7 @@ import {Command} from "./commands/types";
 
 require('yargonaut')
     .helpStyle('green')
-    .errorsStyle('red')
+    .errorsStyle('red');
 const yargs = require('yargs');
 
 const debug = Debug('sql-partial-dump:CmdLineParser');
@@ -19,13 +19,20 @@ export default class CmdLineParser {
     private setupCommands() {
         for (const cmd of this.commands) cmd.setup(yargs);
         yargs
+            .help()
             .demandCommand()
             .recommendCommands()
             .strict()
-            .help();
+        ;
     }
 
-    public run() {
-        yargs.parse();
+    public async run() {
+        return new Promise((resolve, reject) => {
+            yargs
+                .onFinishCommand(resultValue => {
+                    resolve(resultValue);
+                })
+                .parse();
+        });
     }
 }

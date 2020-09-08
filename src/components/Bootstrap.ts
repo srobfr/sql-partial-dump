@@ -13,5 +13,6 @@ export default class Bootstrap {
 
     async run() {
         await this.cmdLineParser.run();
+        debug(`Finished.`);
     }
 }

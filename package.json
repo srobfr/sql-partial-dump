@@ -21,12 +21,13 @@
   "dependencies": {
     "lodash": "^4.17.11",
     "mssql": "^4.2.2",
-    "mysql": "^2.16.0",
+    "mysql2": "^2.1.0",
     "yargonaut": "^1.1.4",
     "yargs": "^15.3.1"
   },
   "devDependencies": {
     "@types/node": "^14.0.14",
+    "@types/yargs": "^15.0.5",
     "ts-node": "^8.10.2",
     "typescript": "^3.9.5"
   }
