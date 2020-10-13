@@ -11,7 +11,7 @@ build: ## Builds the distributable code
 	./node_modules/.bin/tsc
 	chmod +x dist/index.js
 
-publish-patch: install build test
+publish-patch: install build
 	npm version patch
 	npm publish
 	git push origin "$$(git rev-parse --abbrev-ref HEAD)"
