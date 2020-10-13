@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import Container from "./components/Container";
 import ioc from "./ioc";
 import Bootstrap from "./components/Bootstrap";

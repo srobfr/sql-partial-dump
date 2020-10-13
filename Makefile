@@ -9,6 +9,7 @@ install: ## Install dependancies
 build: ## Builds the distributable code
 	-rm -rf dist
 	./node_modules/.bin/tsc
+	chmod +x dist/index.js
 
 publish-patch: install build test
 	npm version patch
