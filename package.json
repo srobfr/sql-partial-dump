@@ -1,6 +1,6 @@
 {
   "name": "sql-partial-dump",
-  "version": "0.0.5",
+  "version": "0.1.0",
   "description": "Partial dumper for SQL",
   "main": "dist/index.js",
   "bin": {
