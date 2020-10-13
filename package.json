@@ -2,12 +2,11 @@
   "name": "sql-partial-dump",
   "version": "0.0.5",
   "description": "Partial dumper for SQL",
-  "main": "index.js",
+  "main": "dist/index.js",
   "bin": {
     "sql-partial-dump": "./dist/index.js"
   },
   "scripts": {
-    "dev": "DEBUG=sql-partial-dump:* ./node_modules/.bin/ts-node src/index.ts",
     "build": "./node_modules/.bin/tsc",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -19,8 +18,8 @@
   "license": "MIT",
   "repository": "https://github.com/srobfr/sql-partial-dump",
   "dependencies": {
+    "debug": "^4.2.0",
     "lodash": "^4.17.11",
-    "mssql": "^4.2.2",
     "mysql2": "^2.1.0",
     "yargonaut": "^1.1.4",
     "yargs": "^15.3.1"
