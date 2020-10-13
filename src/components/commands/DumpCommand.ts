@@ -32,6 +32,7 @@ export default class DumpCommand {
             `Dumps data from a database.`,
             {
                 configFile: {description: `Path for the configuration file`},
+                verbose: {alias: 'v', description: `Enables progress message on stderr`},
                 ...this.dbConnectionOptions,
             },
             argv => this.execute(argv));
@@ -40,6 +41,12 @@ export default class DumpCommand {
     private async execute(argv) {
         // Open readonly connection to DB
         const {user, password, host, schema} = argv;
+        const progressLog = argv.verbose ? (text, goToLineStart) => process.stderr.write(
+            // (goToLineStart ? '' : '\u001b[2K') +
+            text
+            + (goToLineStart ? '\r' : '\n')) : () => {
+        };
+
         const connectionConfig: DbConnectionConfiguration = {user, password, host, schema};
         await this.mysqlConnector.open(connectionConfig);
 
@@ -48,18 +55,24 @@ export default class DumpCommand {
         // Read configuration
         const configuration = require(path.resolve(argv.configFile));
         if (configuration.relations) relations.push(...configuration.relations);
-        debug(relations);
 
         // Runs the data dump
         await this.dataDumper.dump(configuration.queries, relations, (entity: Entity) => {
-            console.log(this.mysqlDumper.generateInsertStatment(entity));
-        });
+            const patchedEntity = DumpCommand.patch(configuration.patches || [], entity);
+            process.stdout.write(this.mysqlDumper.generateInsertStatment(patchedEntity) + '\n');
+        }, progressLog);
 
         // Close connection
         this.mysqlConnector.close();
+
+        if(configuration.postDumpQueries) process.stdout.write(configuration.postDumpQueries.join(';\n'));
     }
 
-    private getConnection(config) {
-
+    private static patch(patchConfigs: Array<{ table: string, patch: Function }>, entity: Entity): Entity {
+        const e: Entity = {table: entity.table, data: {...entity.data}}; // Clone
+        for (const patch of patchConfigs) {
+            if (patch.table === e.table) e.data = patch.patch(e.data);
+        }
+        return e;
     }
 }

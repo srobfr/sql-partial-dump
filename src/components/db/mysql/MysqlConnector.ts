@@ -19,7 +19,8 @@ export default class MysqlConnector {
         const {user, password, host, schema: database} = configuration;
         this.pool = mysql.createPool({
             user, password, host, database,
-            connectionLimit: 10
+            connectionLimit: 10,
+            waitForConnections: false,
         });
         this.promisePool = this.pool.promise();
     }
@@ -37,14 +38,11 @@ export default class MysqlConnector {
         const query = this.pool.query({
             sql: sql,
             nestTables: true,
-            // TODO Convertir le type JSON en chaîne
-            // typeCast: function (field, next) {
-            //     if (field.type === 'TINY' && field.length === 1) {
-            //         return (field.string() === '1'); // 1 = true, 0 = false
-            //     } else {
-            //         return next();
-            //     }
-            // }
+            typeCast: (field, next) => {
+                // Prevents JSON parsing (default mysql lib behaviour)
+                if (field.type === 'JSON') return field.buffer()?.toString('utf8') || null;
+                return next();
+            },
         });
 
         const onEntityPromises = [];
@@ -54,7 +52,7 @@ export default class MysqlConnector {
             query
                 .on('error', reject)
                 .on('end', resolve)
-                .on('fields', function (fields) {
+                .on('fields', fields => {
                     // Prepare the columns triage
                     for (const f of fields) {
                         // debug(`${f.table}.${f.name} is ${f.orgTable}.${f.orgName}`);
@@ -65,9 +63,11 @@ export default class MysqlConnector {
                         });
                     }
                 })
-                .on('result', function (row) {
+                .on('result', row => {
                     for (const alias in row) {
                         const entity = entityGeneratorByAliasName[alias](row[alias]);
+
+                        debug(`free/all: ${this.pool._freeConnections.length}/${this.pool._allConnections.length}`);
                         const p = onEntity(entity);
                         onEntityPromises.push(p);
                     }
@@ -84,7 +84,6 @@ export default class MysqlConnector {
             // Point mysql
             return `ST_GeomFromText('POINT(${value.x} ${value.y})')`;
         }
-
 
 
         return mysql.escape(value);

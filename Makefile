@@ -19,4 +19,4 @@ run: build ## Builds then runs the compiled code
 	node dist/index.js
 
 d:
-	DEBUG=* ./node_modules/.bin/ts-node src/index.ts dump -u tara -h 35.187.121.133 -s tara -p "$$(cat /d/secrets/production/tara-db.password)" examples/tara.js
+	DEBUG=* ts-node src/index.ts dump -u tara -h 35.187.121.133 -s tara -p "$$(cat /d/secrets/production/tara-db.password)" examples/tara.js

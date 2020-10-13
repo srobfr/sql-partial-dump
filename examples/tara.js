@@ -59,13 +59,80 @@ module.exports = {
         `SELECT * FROM TotemUser WHERE id IN ({{*Driver.userId}})`,
 
         `SELECT * FROM Vehicle WHERE id IN ({{*Reservation.vehicleId}})`,
+        `SELECT * FROM Vehicle WHERE id IN ({{*Event.entityId}})`,
 
         `SELECT * FROM Zone WHERE id IN ({{*Vehicle.zoneId}})`,
-
     ],
+
     queries: [
-        // `SELECT * FROM Address ORDER BY id DESC LIMIT 10`,
-        // `SELECT * FROM Reservation ORDER BY id DESC LIMIT 1`,
-        `SELECT * FROM CartRow ORDER BY id DESC LIMIT 1`,
+        `SELECT * FROM Configuration WHERE type = 'default' AND entityId IS NULL`,
+
+        // References for firmware versions (used by Tobis)
+        `SELECT * FROM EmbeddedDevice WHERE macAddress IN ('AAAAAAAAAAAA', 'BBBBBBBBBBBB')`,
+
+        // DB migrations (!important)
+        `SELECT * FROM Migration`,
+        `SELECT * FROM Operator WHERE id IN (1, 5)`,
+        `SELECT * FROM Product WHERE deletedAt IS NULL`,
+        `SELECT * FROM ReportType WHERE isEditable = 0`,
+        `SELECT * FROM Role`,
+
+        // Values hard-coded in other services (like Tobis)
+        `SELECT * FROM TotemUser WHERE username = 'tobis'`,
+        `SELECT * FROM VehicleModel`,
+
+        // Business queries
+
+        `SELECT * FROM TotemUser WHERE email LIKE 'simon.robert%'`,
+
+        `SELECT * FROM Vehicle`,
+        `SELECT * FROM BiQuery`,
+
+        `SELECT * FROM Bonus ORDER BY id DESC LIMIT 30`,
+
+        `SELECT * FROM Account WHERE name = 'CEA Grenoble'`,
+        `SELECT * FROM Coupon WHERE code = 'CEAGRENOBLE'`,
+
+        `SELECT * FROM Vehicle`,
+        `SELECT * FROM Station`,
+        `SELECT * FROM Zone`,
+        `SELECT * FROM Operator`,
+
+        `SELECT * FROM Event WHERE type = 'vehicle.data_frame' ORDER BY id ASC LIMIT 500`,
+    ],
+
+    patches: [
+        {
+            table: 'TotemUser',
+            patch: row => Object.assign(row, {
+                ...(row.username !== 'tobis' && {
+                    salt: '$2a$10$w6gN54T.gj3RoKKhhbkx/O',
+                    password: 'dSjd9ZMsBDsieACh+D5gWN6Ei0bjCPNvEYonubOdEOA=',
+                    ...((!row.email.match(/totem/)) && {
+                        email: `${row.id}@example.com`,
+                    }),
+                }),
+            }),
+        },
+
+        {
+            // Suppression infos Stripe
+            table: 'Account',
+            patch: row => Object.assign(row, {
+                customerId: null,
+                cardId: null,
+            })
+        },
+
+        {table: 'Phone', patch: row => Object.assign(row, {number: '0102030405'})},
+        {table: 'Address', patch: row => Object.assign(row, {street: `9 impasse des gymnastes`})},
+    ],
+
+    postDumpQueries: [
+        // Test user
+        `INSERT INTO TotemUser (salt, realm, username, password, credentials, challenges, email, emailVerified, verificationToken, status, created, lastUpdated, tribeId, comment, selfieUrl, createdAt, updatedAt, referrerId) VALUES ('$2a$10$w6gN54T.gj3RoKKhhbkx/O', NULL, 'test', 'dSjd9ZMsBDsieACh+D5gWN6Ei0bjCPNvEYonubOdEOA=', NULL, NULL, 'test@example.com', 1, NULL, 'active', NULL, NULL, NULL, '', '', '2018-01-25 22:17:29.000', '2018-07-24 09:47:24.000', NULL)`,
+        `INSERT INTO RoleMapping (principalType, principalId, roleId) VALUES ('USER', LAST_INSERT_ID(), 1)`, // This is required for loopback endpoints
+        `INSERT INTO TotemAcl(type, userId) SELECT 'bi_query' AS type, (SELECT id FROM TotemUser WHERE email = 'test@example.com') AS userId`,
+        `INSERT INTO TotemAcl(type, userId) SELECT 'roles.admin' AS type, (SELECT id FROM TotemUser WHERE email = 'test@example.com') AS userId`,
     ],
 };

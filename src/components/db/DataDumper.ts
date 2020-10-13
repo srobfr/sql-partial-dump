@@ -4,6 +4,8 @@ import {Entity} from "./types";
 
 const debug = Debug('sql-partial-dump:DataDumper');
 
+type progressLogType = (text: string, goToLineStart?: boolean) => void;
+
 interface Context {
     onEntity: (entity: Entity) => void,
     alreadyProcessedEntitiesHashes: Set<string>,
@@ -11,6 +13,7 @@ interface Context {
     pendingDiscoveriesByTable: Map<string, Promise<any>>,
     relations: Array<string>,
     stats: any,
+    progressLog: progressLogType,
 }
 
 /**
@@ -70,7 +73,7 @@ export default class DataDumper {
         if (shouldCleanup) context.pendingDiscoveriesByTable.delete(entity.table);
     }
 
-    private generateEntityHash(entity: Entity) {
+    private static generateEntityHash(entity: Entity) {
         if (entity.data.id) return entity.table + entity.data.id;
         // TODO Create hash based on primary key config
         return JSON.stringify(entity); // Fallback to JSON stringifying.
@@ -78,19 +81,23 @@ export default class DataDumper {
 
     private async processEntity(entity: Entity, context: Context) {
         // Generate a unique hash for the entity
-        const hash = this.generateEntityHash(entity);
+        const hash = DataDumper.generateEntityHash(entity);
 
         // Discard it if already seen
         if (context.alreadyProcessedEntitiesHashes.has(hash)) return;
         context.alreadyProcessedEntitiesHashes.add(hash);
 
         debug(`Found entity ${hash}`);
+        context.stats.discoveredCount++;
+        DataDumper.printProgress(context);
 
         // Await entity dependancies discovery
         await this.waitForEntityDiscovery(entity, context);
 
         // Finally, dump the entity
         context.onEntity(entity);
+        context.stats.dumpedCount++;
+        DataDumper.printProgress(context);
     }
 
     private async processSql(sql: string, context: Context) {
@@ -99,14 +106,15 @@ export default class DataDumper {
         await this.mysqlConnector.fetchEntities(sql, entity => this.processEntity(entity, context));
     }
 
+    private static printProgress(context: Context) {
+        context.progressLog(`Dumped : ${context.stats.dumpedCount} / Discovered : ${context.stats.discoveredCount} / RAM : ${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`, true);
+    }
+
     /**
      * Runs the recursive dump
-     * @param initialQueries
-     * @param relations
-     * @param onEntity
      */
-    public async dump(initialQueries: Array<string>, relations: Array<string>, onEntity: (entity: Entity) => void) {
-        // debug(`Dumping`, {initialQueries, relations});
+    public async dump(initialQueries: Array<string>, relations: Array<string>, onEntity: (entity: Entity) => void, progressLog: progressLogType) {
+        const startTime = (new Date()).getTime();
         const context: Context = {
             onEntity,
             alreadyProcessedEntitiesHashes: new Set<string>(),
@@ -114,12 +122,17 @@ export default class DataDumper {
             pendingDiscoveriesByTable: new Map(),
             relations,
             stats: {
+                discoveredCount: 0,
+                dumpedCount: 0,
                 selectQueriesCount: 0,
             },
+            progressLog,
         };
         const toExecute = [...initialQueries];
         for (const sql of toExecute) await this.processSql(sql, context);
 
-        console.error(`${context.stats.selectQueriesCount} select queries`);
+        progressLog(`\nTotal SELECT queries : ${context.stats.selectQueriesCount}
+Dumped entities count : ${context.stats.dumpedCount}
+Duration : ${(new Date()).getTime() - startTime}ms`);
     }
 }
