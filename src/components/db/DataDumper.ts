@@ -8,9 +8,9 @@ type progressLogType = (text: string, goToLineStart?: boolean) => void;
 
 interface Context {
     onEntity: (entity: Entity) => void,
-    alreadyProcessedEntitiesHashes: Set<string>,
-    toDiscoverByTable: Map<string, Set<Entity>>,
-    pendingDiscoveriesByTable: Map<string, Promise<any>>,
+    alreadyFetchedEntitiesHashes: Set<string>,
+    discoveryIsPending: boolean,
+    toDiscover: Array<{ entity: Entity, resolve: Function, reject: Function }>,
     relations: Array<string>,
     stats: any,
     progressLog: progressLogType,
@@ -23,54 +23,49 @@ export default class DataDumper {
     constructor(private readonly mysqlConnector: MysqlConnector) {
     }
 
-    /**
-     * Discover related entities for a same-table entities batch.
-     */
-    private async discovery(table: string, context: Context) {
-        const entities = context.toDiscoverByTable.get(table);
-        if (!entities) return;
-        context.toDiscoverByTable.delete(table); // Leaves place for the next batch.
-
-        debug(`Discovering related entities for ${entities.size} rows from table ${table}`);
-
-        const re = new RegExp(`\{\{(?<multiple>\\*)?${table}\\.(?<column>.+?)\}\}`);
-        for (const relation of context.relations) {
-            const s = relation.replace(re, (a, b, c, d, e, groups) => {
-                if (groups.multiple) return Array.from(entities)
-                    .map(e => this.mysqlConnector.escapeValue(e.data[groups.column]))
-                    .join(', ');
-                return this.mysqlConnector.escapeValue(e.data[groups.column]);
-            });
-            if (s === relation) continue;
-
-            await this.processSql(s, context);
+    private async startDiscovery(context: Context) {
+        let table = null;
+        const batch = [];
+        while (context.toDiscover.length > 0) {
+            const e = context.toDiscover[0].entity;
+            table = table || e.table;
+            if (table !== e.table) break;
+            batch.push(context.toDiscover.shift());
         }
 
-        debug(`Discovered related entities for ${entities.size} rows from table ${table}`);
+        debug(`Discovering related entities for ${batch.length} rows from table ${table}`);
 
-        // TODO Handle cycle in relations graph at table level
-        await this.discovery(table, context);
+        try {
+            const entities = batch.map(b => b.entity);
+            const re = new RegExp(`\{\{(?<multiple>\\*)?${table}\\.(?<column>.+?)\}\}`);
+            for (const relation of context.relations) {
+                const s = relation.replace(re, (a, b, c, d, e, groups) => {
+                    if (groups.multiple) return entities
+                        .map(e => this.mysqlConnector.escapeValue(e.data[groups.column]))
+                        .join(', ');
+                    return this.mysqlConnector.escapeValue(e.data[groups.column]);
+                });
+                if (s === relation) continue;
+
+                await this.processSql(s, context);
+            }
+
+            debug(`Discovered related entities for ${batch.length} rows from table ${table}`);
+            for (const {resolve} of batch) resolve();
+        } catch (err) {
+            for (const {reject} of batch) reject(err);
+        }
     }
 
     private async waitForEntityDiscovery(entity: Entity, context: Context) {
-        // Stack the entity for relations lookup
-        if (!context.toDiscoverByTable.has(entity.table)) context.toDiscoverByTable.set(entity.table, new Set());
-        context.toDiscoverByTable.get(entity.table).add(entity);
-
-        let shouldCleanup = false;
-        if (!context.pendingDiscoveriesByTable.has(entity.table)) {
-            debug(entity);
-            // Trigger the discovery for this table
-            context.pendingDiscoveriesByTable.set(entity.table, this.discovery(entity.table, context));
-            shouldCleanup = true;
-        }
-
-        // Await the table discovery.
-        debug(`Waiting for the discovery to finish on table ${entity.table}`);
-        await context.pendingDiscoveriesByTable.get(entity.table);
-        debug(`Discovery finished on table ${entity.table}`);
-
-        if (shouldCleanup) context.pendingDiscoveriesByTable.delete(entity.table);
+        await new Promise((resolve, reject) => {
+            // Stack the entity for relations lookup
+            context.toDiscover.push({entity, resolve, reject});
+            // Start the discoverer, if not already started
+            setTimeout(() => this.startDiscovery(context), 0);
+            debug(`Waiting for discovery for entity`, entity);
+        });
+        debug(`Waiting finished for discovery for entity`, entity);
     }
 
     private static generateEntityHash(entity: Entity) {
@@ -79,16 +74,19 @@ export default class DataDumper {
         return JSON.stringify(entity); // Fallback to JSON stringifying.
     }
 
-    private async processEntity(entity: Entity, context: Context) {
+    private async processFetchedEntity(entity: Entity, context: Context) {
         // Generate a unique hash for the entity
         const hash = DataDumper.generateEntityHash(entity);
 
         // Discard it if already seen
-        if (context.alreadyProcessedEntitiesHashes.has(hash)) return;
-        context.alreadyProcessedEntitiesHashes.add(hash);
+        if (context.alreadyFetchedEntitiesHashes.has(hash)) {
+            debug(`${hash} already known.`);
+            return;
+        }
+        context.alreadyFetchedEntitiesHashes.add(hash);
 
         debug(`Found entity ${hash}`);
-        context.stats.discoveredCount++;
+        context.stats.fetchedCount++;
         DataDumper.printProgress(context);
 
         // Await entity dependancies discovery
@@ -103,11 +101,11 @@ export default class DataDumper {
     private async processSql(sql: string, context: Context) {
         debug(`Processing sql : `, sql);
         context.stats.selectQueriesCount++;
-        await this.mysqlConnector.fetchEntities(sql, entity => this.processEntity(entity, context));
+        await this.mysqlConnector.fetchEntities(sql, entity => this.processFetchedEntity(entity, context));
     }
 
     private static printProgress(context: Context) {
-        context.progressLog(`Dumped : ${context.stats.dumpedCount} / Discovered : ${context.stats.discoveredCount} / RAM : ${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`, true);
+        context.progressLog(`Dumped : ${context.stats.dumpedCount} / Fetched : ${context.stats.fetchedCount} / RAM : ${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`, true);
     }
 
     /**
@@ -117,12 +115,12 @@ export default class DataDumper {
         const startTime = (new Date()).getTime();
         const context: Context = {
             onEntity,
-            alreadyProcessedEntitiesHashes: new Set<string>(),
-            toDiscoverByTable: new Map(),
-            pendingDiscoveriesByTable: new Map(),
+            alreadyFetchedEntitiesHashes: new Set<string>(),
+            toDiscover: [],
+            discoveryIsPending: false,
             relations,
             stats: {
-                discoveredCount: 0,
+                fetchedCount: 0,
                 dumpedCount: 0,
                 selectQueriesCount: 0,
             },

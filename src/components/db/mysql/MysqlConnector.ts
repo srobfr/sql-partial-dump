@@ -20,7 +20,7 @@ export default class MysqlConnector {
         this.pool = mysql.createPool({
             user, password, host, database,
             connectionLimit: 10,
-            waitForConnections: false,
+            waitForConnections: true,
         });
         this.promisePool = this.pool.promise();
     }

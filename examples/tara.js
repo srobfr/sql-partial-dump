@@ -121,11 +121,13 @@ module.exports = {
             patch: row => Object.assign(row, {
                 customerId: null,
                 cardId: null,
-            })
+                name: row.name.replace(/^compte prépayé .+$/, `compte prépayé ${row.id}`),
+            }),
         },
 
         {table: 'Phone', patch: row => Object.assign(row, {number: '0102030405'})},
         {table: 'Address', patch: row => Object.assign(row, {street: `9 impasse des gymnastes`})},
+        {table: 'Contact', patch: row => Object.assign(row, {lastName: row.lastName.substr(0, 1)})},
     ],
 
     postDumpQueries: [
