@@ -59,13 +59,13 @@ export default class DumpCommand {
         // Runs the data dump
         await this.dataDumper.dump(configuration.queries, relations, (entity: Entity) => {
             const patchedEntity = DumpCommand.patch(configuration.patches || [], entity);
-            process.stdout.write(this.mysqlDumper.generateInsertStatment(patchedEntity) + '\n');
+            process.stdout.write(this.mysqlDumper.generateInsertStatment(patchedEntity) + ';\n');
         }, progressLog);
 
         // Close connection
         this.mysqlConnector.close();
 
-        if(configuration.postDumpQueries) process.stdout.write(configuration.postDumpQueries.join(';\n'));
+        if (configuration.postDumpQueries) process.stdout.write(configuration.postDumpQueries.map(q => q + ';\n').join(''));
     }
 
     private static patch(patchConfigs: Array<{ table: string, patch: Function }>, entity: Entity): Entity {
