@@ -57,10 +57,12 @@ export default class DumpCommand {
         if (configuration.relations) relations.push(...configuration.relations);
 
         // Runs the data dump
+        process.stdout.write(`SET FOREIGN_KEY_CHECKS=0;\n`);
         await this.dataDumper.dump(configuration.queries, relations, (entity: Entity) => {
             const patchedEntity = DumpCommand.patch(configuration.patches || [], entity);
             process.stdout.write(this.mysqlDumper.generateInsertStatment(patchedEntity) + ';\n');
         }, progressLog);
+        process.stdout.write(`SET FOREIGN_KEY_CHECKS=1;\n`);
 
         // Close connection
         this.mysqlConnector.close();

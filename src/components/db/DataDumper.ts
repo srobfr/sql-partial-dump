@@ -105,7 +105,7 @@ export default class DataDumper {
     }
 
     private static printProgress(context: Context) {
-        context.progressLog(`Dumped : ${context.stats.dumpedCount} / Fetched : ${context.stats.fetchedCount} / RAM : ${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`, true);
+        context.progressLog(`Dumped : ${context.stats.dumpedCount} / Fetched : ${context.stats.fetchedCount} / RAM : ${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB / Selects : ${context.stats.selectQueriesCount}  `, true);
     }
 
     /**

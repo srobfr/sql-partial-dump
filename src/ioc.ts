@@ -5,6 +5,7 @@ import MysqlConnector from "./components/db/mysql/MysqlConnector";
 import MysqlRelationsFinder from "./components/db/mysql/MysqlRelationsFinder";
 import DataDumper from "./components/db/DataDumper";
 import MysqlDumper from "./components/db/mysql/MysqlDumper";
+import EmptyCommand from "./components/commands/EmptyCommand";
 
 /**
  * IOC configuration
@@ -15,6 +16,7 @@ export default {
     ),
     cmdLineParser: async (c) => new CmdLineParser([
         await c.get('dumpCommand'),
+        await c.get('emptyCommand'),
     ]),
 
     // DB connectors
@@ -26,6 +28,9 @@ export default {
         await c.get('mysqlRelationsFinder') as MysqlRelationsFinder,
         await c.get('mysqlDumper') as MysqlDumper,
         await c.get('dataDumper') as DataDumper,
+    ),
+    emptyCommand: async (c) => new EmptyCommand(
+        await c.get('mysqlConnector') as MysqlConnector
     ),
 
     // Services
