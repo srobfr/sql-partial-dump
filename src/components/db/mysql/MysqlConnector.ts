@@ -41,6 +41,7 @@ export default class MysqlConnector {
             typeCast: (field, next) => {
                 // Prevents JSON parsing (default mysql lib behaviour)
                 if (field.type === 'JSON') return field.buffer()?.toString('utf8') || null;
+                if (field.type === 'DATETIME') return field.buffer()?.toString('utf8') || null;
                 return next();
             },
         });
@@ -84,7 +85,6 @@ export default class MysqlConnector {
             // Point mysql
             return `ST_GeomFromText('POINT(${value.x} ${value.y})')`;
         }
-
 
         return mysql.escape(value);
     }

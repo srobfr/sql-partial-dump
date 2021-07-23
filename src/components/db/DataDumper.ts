@@ -1,6 +1,6 @@
 import Debug from "debug";
 import MysqlConnector from "./mysql/MysqlConnector";
-import {Entity} from "./types";
+import { Entity } from "./types";
 
 const debug = Debug('sql-partial-dump:DataDumper');
 
@@ -33,34 +33,42 @@ export default class DataDumper {
             batch.push(context.toDiscover.shift());
         }
 
+        if (!batch.length) return;
         debug(`Discovering related entities for ${batch.length} rows from table ${table}`);
 
         try {
             const entities = batch.map(b => b.entity);
-            const re = new RegExp(`\{\{(?<multiple>\\*)?${table}\\.(?<column>.+?)\}\}`);
-            for (const relation of context.relations) {
-                const s = relation.replace(re, (a, b, c, d, e, groups) => {
-                    if (groups.multiple) return entities
-                        .map(e => this.mysqlConnector.escapeValue(e.data[groups.column]))
-                        .join(', ');
-                    return this.mysqlConnector.escapeValue(e.data[groups.column]);
-                });
-                if (s === relation) continue;
 
-                await this.processSql(s, context);
+            const re = new RegExp(`\{\{(?<multiple>\\*)?${table}\\.(?<column>.+?)\}\}`);
+            const relations = context.relations;
+
+            for (const relation of relations) {
+                const queries = new Set<string>();
+                relation.replace(re, (a, b, c, d, e, groups) => {
+                    debug({ a, b, c, d, e, groups });
+                    if (groups.multiple) queries.add(e.replace(a, entities.map(ent => this.mysqlConnector.escapeValue(ent.data[groups.column])).join(', ')));
+                    else {
+                        for (const q of entities.map(ent => e.replace(a, this.mysqlConnector.escapeValue(ent.data[groups.column])))) {
+                            queries.add(q);
+                        }
+                    }
+                    return null;
+                });
+                if (!queries.size) continue;
+                for (const s of queries) await this.processSql(s, context);
             }
 
             debug(`Discovered related entities for ${batch.length} rows from table ${table}`);
-            for (const {resolve} of batch) resolve();
+            for (const { resolve } of batch) resolve();
         } catch (err) {
-            for (const {reject} of batch) reject(err);
+            for (const { reject } of batch) reject(err);
         }
     }
 
     private async waitForEntityDiscovery(entity: Entity, context: Context) {
         await new Promise((resolve, reject) => {
             // Stack the entity for relations lookup
-            context.toDiscover.push({entity, resolve, reject});
+            context.toDiscover.push({ entity, resolve, reject });
             // Start the discoverer, if not already started
             setTimeout(() => this.startDiscovery(context), 0);
             debug(`Waiting for discovery for entity`, entity);
