@@ -13,16 +13,16 @@ const debug = Debug('sql-partial-dump:DumpCommand');
  */
 export default class DumpCommand {
     constructor(private readonly mysqlConnector: MysqlConnector,
-                private readonly mysqlRelationsFinder: MysqlRelationsFinder,
-                private readonly mysqlDumper: MysqlDumper,
-                private readonly dataDumper: DataDumper) {
+        private readonly mysqlRelationsFinder: MysqlRelationsFinder,
+        private readonly mysqlDumper: MysqlDumper,
+        private readonly dataDumper: DataDumper) {
     }
 
     private dbConnectionOptions = {
         user: {alias: 'u', description: `User login for the database connection`, required: true},
         password: {alias: 'p', description: `Password for the database connection`, required: true},
         host: {alias: 'h', description: `Serveur host for the database connection`, default: 'localhost'},
-        schema: {alias: 's', description: `Database schema for the connection`, required: true},
+        schema: {alias: 's', description: `Default db schema (used if not specified in the queries)`, required: true},
         driver: {alias: 'd', description: `Database driver to use`, default: 'mysql', choices: ['mysql', 'sqlite']},
     };
 
@@ -41,11 +41,9 @@ export default class DumpCommand {
     private async execute(argv) {
         // Open readonly connection to DB
         const {user, password, host, schema} = argv;
-        const progressLog = argv.verbose ? (text, goToLineStart) => process.stderr.write(
-            // (goToLineStart ? '' : '\u001b[2K') +
-            text
-            + (goToLineStart ? '\r' : '\n')) : () => {
-        };
+        const progressLog = argv.verbose
+            ? (text, goToLineStart) => process.stderr.write(text + (goToLineStart ? '\r' : '\n'))
+            : () => {};
 
         const connectionConfig: DbConnectionConfiguration = {user, password, host, schema};
         await this.mysqlConnector.open(connectionConfig);
@@ -70,7 +68,7 @@ export default class DumpCommand {
         if (configuration.postDumpQueries) process.stdout.write(configuration.postDumpQueries.map(q => q + ';\n').join(''));
     }
 
-    private static patch(patchConfigs: Array<{ table: string, patch: Function }>, entity: Entity): Entity {
+    private static patch(patchConfigs: Array<{table: string, patch: Function}>, entity: Entity): Entity {
         const e: Entity = {table: entity.table, data: {...entity.data}}; // Clone
         for (const patch of patchConfigs) {
             if (patch.table === e.table) e.data = patch.patch(e.data);
