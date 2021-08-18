@@ -17,6 +17,6 @@ export default class MysqlDumper {
      */
     public generateInsertStatment(entity: Entity): string {
         const columns = Object.keys(entity.data);
-        return `INSERT INTO \`${entity.table}\` (${columns.map(c => '`' + c + '`').join(', ')}) VALUE (${columns.map(c => this.mysqlConnector.escapeValue(entity.data[c])).join(', ')})`;
+        return `INSERT INTO \`${entity.schema}\`.\`${entity.table}\` (${columns.map(c => '`' + c + '`').join(', ')}) VALUE (${columns.map(c => this.mysqlConnector.escapeValue(entity.data[c])).join(', ')})`;
     }
 }

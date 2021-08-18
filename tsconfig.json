@@ -11,6 +11,7 @@
             "dom",
             "es5",
             "scripthost",
+            "esnext.asynciterable",
         ]
     },
     "exclude": [

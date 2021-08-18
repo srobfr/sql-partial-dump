@@ -6,6 +6,7 @@ export interface DbConnectionConfiguration {
 }
 
 export interface Entity {
+    schema: string;
     table: string;
     data: { [key: string]: any };
 }

@@ -3,7 +3,6 @@ import CmdLineParser from "./components/CmdLineParser";
 import DumpCommand from "./components/commands/DumpCommand";
 import MysqlConnector from "./components/db/mysql/MysqlConnector";
 import MysqlRelationsFinder from "./components/db/mysql/MysqlRelationsFinder";
-import DataDumper from "./components/db/DataDumper";
 import MysqlDumper from "./components/db/mysql/MysqlDumper";
 import EmptyCommand from "./components/commands/EmptyCommand";
 
@@ -26,8 +25,7 @@ export default {
     dumpCommand: async (c) => new DumpCommand(
         await c.get('mysqlConnector') as MysqlConnector,
         await c.get('mysqlRelationsFinder') as MysqlRelationsFinder,
-        await c.get('mysqlDumper') as MysqlDumper,
-        await c.get('dataDumper') as DataDumper,
+        await c.get('mysqlDumper') as MysqlDumper
     ),
     emptyCommand: async (c) => new EmptyCommand(
         await c.get('mysqlConnector') as MysqlConnector
@@ -36,5 +34,4 @@ export default {
     // Services
     mysqlRelationsFinder: async (c) => new MysqlRelationsFinder(await c.get('mysqlConnector') as MysqlConnector),
     mysqlDumper: async (c) => new MysqlDumper(await c.get('mysqlConnector') as MysqlConnector),
-    dataDumper: async (c) => new DataDumper(await c.get('mysqlConnector') as MysqlConnector),
 };
