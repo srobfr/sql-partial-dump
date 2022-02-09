@@ -1,7 +1,7 @@
 /**
  * SQL partial dump configuration file example
  */
-export default {
+module.exports = {
     /**
      * Relations where the related entity must be dumped *before* the current entity to satisfy the foreign key constraint.
      */
