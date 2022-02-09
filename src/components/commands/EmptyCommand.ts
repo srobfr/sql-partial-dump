@@ -15,6 +15,7 @@ export default class EmptyCommand {
         user: {alias: 'u', description: `User login for the database connection`, required: true},
         password: {alias: 'p', description: `Password for the database connection`, required: true},
         host: {alias: 'h', description: `Serveur host for the database connection`, default: 'localhost'},
+        port: {alias: 'P', description: `Port for the database connection`, default: 3306},
         schema: {alias: 's', description: `Database schema for the connection`, required: true},
         driver: {alias: 'd', description: `Database driver to use`, default: 'mysql', choices: ['mysql', 'sqlite']},
         delete: {description: `Use DELETE instead of TRUNCATE`},
@@ -32,9 +33,9 @@ export default class EmptyCommand {
 
     private async execute(argv) {
         // Open connection to DB
-        const {user, password, host, schema} = argv;
+        const {user, password, host, port, schema} = argv;
 
-        const connectionConfig: DbConnectionConfiguration = {user, password, host, schema};
+        const connectionConfig: DbConnectionConfiguration = {user, password, host, port, schema};
         await this.mysqlConnector.open(connectionConfig);
 
         const {promisePool} = this.mysqlConnector;

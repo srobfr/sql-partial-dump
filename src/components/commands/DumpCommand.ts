@@ -19,6 +19,7 @@ export default class DumpCommand {
     private dbConnectionOptions = {
         user: {alias: 'u', description: `User login for the database connection`, required: true},
         password: {alias: 'p', description: `Password for the database connection`, required: true},
+        port: {alias: 'P', description: `Port for the database connection`, default: 3306},
         host: {alias: 'h', description: `Serveur host for the database connection`, default: 'localhost'},
         schema: {alias: 's', description: `Default db schema (used if not specified in the queries)`},
         driver: {alias: 'd', description: `Database driver to use`, default: 'mysql', choices: ['mysql', 'sqlite']},
@@ -44,7 +45,7 @@ export default class DumpCommand {
 
     private async execute(argv) {
         // Open readonly connection to DB
-        const {user, password, host, schema} = argv;
+        const {user, password, host, port, schema} = argv;
         const progressLog = argv.verbose
             ? (text, goToLineStart) => process.stderr.write(text + (goToLineStart ? '\r' : '\n'))
             : () => {};
@@ -71,7 +72,7 @@ export default class DumpCommand {
 
         const statInterval = setInterval(() => showStats(true), 100);
 
-        const connectionConfig: DbConnectionConfiguration = {user, password, host, schema};
+        const connectionConfig: DbConnectionConfiguration = {user, password, host, port, schema};
         await this.mysqlConnector.open(connectionConfig);
 
         const configuration = await import(path.resolve(argv.configFile));

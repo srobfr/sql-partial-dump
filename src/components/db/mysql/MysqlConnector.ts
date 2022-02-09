@@ -61,9 +61,9 @@ export default class MysqlConnector {
      */
     public async open(configuration: DbConnectionConfiguration) {
         debug(`Connecting to Mysql server ${configuration.host}`);
-        const {user, password, host, schema: database} = configuration;
+        const {user, password, host, port, schema: database} = configuration;
         this.pool = mysql.createPool({
-            user, password, host, database,
+            user, password, host, port, database,
             connectionLimit: 10,
             waitForConnections: true,
         });

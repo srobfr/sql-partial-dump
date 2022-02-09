@@ -1,6 +1,7 @@
 export interface DbConnectionConfiguration {
     host: string;
     schema: string;
+    port: number;
     user: string;
     password: string;
 }
