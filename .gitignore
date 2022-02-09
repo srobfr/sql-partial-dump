@@ -2,3 +2,5 @@ node_modules/
 dist/index.js
 package-lock.json
 dist/
+.vscode/
+tmp/

@@ -20,7 +20,7 @@ export default class DumpCommand {
         user: {alias: 'u', description: `User login for the database connection`, required: true},
         password: {alias: 'p', description: `Password for the database connection`, required: true},
         host: {alias: 'h', description: `Serveur host for the database connection`, default: 'localhost'},
-        schema: {alias: 's', description: `Default db schema (used if not specified in the queries)`, required: true},
+        schema: {alias: 's', description: `Default db schema (used if not specified in the queries)`},
         driver: {alias: 'd', description: `Database driver to use`, default: 'mysql', choices: ['mysql', 'sqlite']},
     };
 
@@ -74,7 +74,7 @@ export default class DumpCommand {
         const connectionConfig: DbConnectionConfiguration = {user, password, host, schema};
         await this.mysqlConnector.open(connectionConfig);
 
-        const configuration = require(path.resolve(argv.configFile));
+        const configuration = await import(path.resolve(argv.configFile));
         const queries = [...configuration.queries];
 
         const {mysqlConnector, mysqlRelationsFinder, mysqlDumper} = this;
@@ -99,8 +99,8 @@ export default class DumpCommand {
             const {schema, table} = batch[0];
 
             {   // Find preprequisites relations (=entities that must be dumped before this one)
-                const prerequisites = await mysqlRelationsFinder.findPrerequisites(schema, table, configuration.prerequisites || []);
-                for (const relation of prerequisites) {
+                const preRequisites = await mysqlRelationsFinder.findPreRequisites(schema, table, configuration.preRequisites || []);
+                for (const relation of preRequisites) {
                     const sql = relationToSql(relation, batch);
                     await processSql(sql);
                 }
@@ -114,8 +114,8 @@ export default class DumpCommand {
             }
 
             {   // Find postrequisites relations (=entities that must be dumped after this one)
-                const postrequisites = await mysqlRelationsFinder.findPostrequisites(schema, table, configuration.postrequisites || []);
-                for (const relation of postrequisites) {
+                const postRequisites = await mysqlRelationsFinder.findPostRequisites(schema, table, configuration.postRequisites || []);
+                for (const relation of postRequisites) {
                     const sql = relationToSql(relation, batch);
                     await processSql(sql);
                 }

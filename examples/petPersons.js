@@ -1,24 +1,40 @@
-module.exports = {
-    relations: [
-        // Specify here the relations between entities
-        `SELECT * FROM Person WHERE id = {{Pat.id}}`, // Fetch the pets owners (one by one, /!\ SLOW /!\)
-        `SELECT * FROM Person WHERE id IN ({{*Pat.id}})`, // Fetch the pets owners (by batch)
+/**
+ * SQL partial dump configuration file example
+ */
+export default {
+    /**
+     * Relations where the related entity must be dumped *before* the current entity to satisfy the foreign key constraint.
+     */
+    preRequisites: [
+        `SELECT * FROM Owner WHERE id IN ({{Pet.ownerId}})`,
     ],
 
+    /**
+     * Relations where the related entity must be dumped *after* the current entity to satisfy the foreign key constraint.
+     */
+    postRequisites: [
+        `SELECT * FROM Pet WHERE ownerId IN ({{Owner.id}})`,
+    ],
+
+    /**
+     * Initial queries
+     */
     queries: [
-        // Initial queries
         `SELECT * FROM Pet`,
     ],
 
+    /**
+     * Patches applied in-ram on fetched entities before dumping them
+     */
     patches: [
-        {   // Patches configurations : useful to edit some confidential infos in the final dump
-            table: 'Person',
-            patch: row => Object.assign(row, {name: '[redacted]]'}),
-        },
+        {table: 'Person', patch: row => ({...row, name: '[redacted]]'})}, // Patches Person.name
     ],
 
+
+    /**
+     * Some raw SQL queries to append at the end to the output
+     */
     postDumpQueries: [
-        // Some queries to append to the output.
-        `INSERT INTO Pet (name) VALUE ('Dogbert')`
+        `INSERT INTO Pet (name) VALUE ('Dogbert')`,
     ],
 };

@@ -20,6 +20,7 @@ export default class CmdLineParser {
         for (const cmd of this.commands) cmd.setup(yargs);
         yargs
             .help()
+            .env('SPD')
             .demandCommand()
             .recommendCommands()
             .strict()

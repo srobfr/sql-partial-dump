@@ -6,16 +6,16 @@ const debug = require('debug')('sql-partial-dump:MysqlRelationsFinder');
  * Finds the relations in a Mysql database (from foreign keys).
  */
 export default class MysqlRelationsFinder {
-    private readonly foundPrerequisitesBySchemaTable = new Map<string, Array<string>>();
-    private readonly foundPostrequisitesBySchemaTable = new Map<string, Array<string>>();
+    private readonly foundPreRequisitesBySchemaTable = new Map<string, Array<string>>();
+    private readonly foundPostRequisitesBySchemaTable = new Map<string, Array<string>>();
 
     constructor(private readonly mysqlConnector: MysqlConnector) {
     }
 
-    public async findPrerequisites(schema: string, table: string, configPreRequisites: Array<string>): Promise<Array<string>> {
+    public async findPreRequisites(schema: string, table: string, configPreRequisites: Array<string>): Promise<Array<string>> {
         {
             let r: string[];
-            if (r = this.foundPrerequisitesBySchemaTable.get(`${schema}.${table}`)) return r;
+            if (r = this.foundPreRequisitesBySchemaTable.get(`${schema}.${table}`)) return r;
         }
 
         // Needed relations extracted from the DB's foreign keys
@@ -30,15 +30,15 @@ export default class MysqlRelationsFinder {
             ...relations,
         ];
 
-        this.foundPrerequisitesBySchemaTable.set(`${schema}.${table}`, r);
+        this.foundPreRequisitesBySchemaTable.set(`${schema}.${table}`, r);
 
         return r;
     }
 
-    public async findPostrequisites(schema: string, table: string, configPostRequisites: Array<string>): Promise<Array<string>> {
+    public async findPostRequisites(schema: string, table: string, configPostRequisites: Array<string>): Promise<Array<string>> {
         {
             let r: string[];
-            if (r = this.foundPostrequisitesBySchemaTable.get(`${schema}.${table}`)) return r;
+            if (r = this.foundPostRequisitesBySchemaTable.get(`${schema}.${table}`)) return r;
         }
 
         // Needed relations from the config
@@ -46,7 +46,7 @@ export default class MysqlRelationsFinder {
             (relation: string) => !!relation.match(new RegExp(`\{\{(?:(?<schema>${schema})\\.)?(?<table>${table})\\.(?<column>.+?)\}\}`))
         );
 
-        this.foundPostrequisitesBySchemaTable.set(`${schema}.${table}`, relations);
+        this.foundPostRequisitesBySchemaTable.set(`${schema}.${table}`, relations);
 
         return relations;
     }
