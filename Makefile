@@ -7,7 +7,6 @@ install: ## Install dependancies
 	npm i
 
 build: ## Builds the distributable code
-	-rm -rf dist
 	./node_modules/.bin/tsc
 	chmod +x dist/index.js
 

@@ -19,10 +19,11 @@ export default class DumpCommand {
     private dbConnectionOptions = {
         user: {alias: 'u', description: `User login for the database connection`, required: true},
         password: {alias: 'p', description: `Password for the database connection`, required: true},
-        port: {alias: 'P', description: `Port for the database connection`, default: 3306},
+        port: {alias: 'P', description: `Port for the database connection`, type: 'number', default: 3306},
         host: {alias: 'h', description: `Serveur host for the database connection`, default: 'localhost'},
         schema: {alias: 's', description: `Default db schema (used if not specified in the queries)`},
         driver: {alias: 'd', description: `Database driver to use`, default: 'mysql', choices: ['mysql', 'sqlite']},
+        schemaMap: {alias: 'm', description: `Schema mapping in "src:target" format`, default: [], type: 'array'},
     };
 
     public setup(yargs) {
@@ -45,7 +46,17 @@ export default class DumpCommand {
 
     private async execute(argv) {
         // Open readonly connection to DB
-        const {user, password, host, port, schema} = argv;
+        const {user, password, host, port, schema, schemaMap: _schemaMap} = argv;
+
+        const schemaMap = {schema: null};
+        for (const sm of _schemaMap) {
+            const m = sm.match(/^(?<from>.*?):(?<to>.*?)$/);
+            if (!m) throw new Error(`schemaMap arg must contain a ':'`);
+            const {from, to} = m.groups;
+            schemaMap[from || ''] = to || '';
+        }
+
+        debug(argv);
         const progressLog = argv.verbose
             ? (text, goToLineStart) => process.stderr.write(text + (goToLineStart ? '\r' : '\n'))
             : () => {};
@@ -110,6 +121,7 @@ export default class DumpCommand {
             // Dump
             for (const entity of batch) {
                 const patchedEntity = DumpCommand.patch(configuration.patches || [], entity);
+                if (schemaMap[patchedEntity.schema] !== undefined) patchedEntity.schema = schemaMap[patchedEntity.schema];
                 process.stdout.write(mysqlDumper.generateInsertStatment(patchedEntity) + ';\n');
                 stats.dumpedCount++;
             }
