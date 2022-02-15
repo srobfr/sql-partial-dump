@@ -34,7 +34,7 @@ Environment variables are strongly recommended for `--password` option, to preve
 For example :
 
 ```sh
-SPD_PASSWORD=myPassword sql-partial-dump dump /path/to/my/spd-config.yml -u myDbUser -h myDbHost -s myDbSchema > inserts.sql
+SPD_PASSWORD=myPassword sql-partial-dump dump /path/to/my/config.js -u myDbUser -h myDbHost -s myDbSchema > inserts.sql
 ```
 
 ### Empty
