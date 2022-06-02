@@ -92,7 +92,7 @@ export default class DumpCommand {
         const {mysqlConnector, mysqlRelationsFinder, mysqlDumper} = this;
         const maxBatchSize = 50;
         const alreadyProcessedSql = new Set<string>();
-        const alreadyFetchedEntityHash = new Set<string>();
+        const alreadyDumpedEntityHash = new Set<string>();
 
         function relationToSql(relation: string, batch: Array<Entity>): string {
             const {schema, table} = batch[0];
@@ -120,6 +120,9 @@ export default class DumpCommand {
 
             // Dump
             for (const entity of batch) {
+                const hash = DumpCommand.generateEntityHash(entity);
+                if (alreadyDumpedEntityHash.has(hash)) continue; // Prevents multiple dumping of the same entity
+                alreadyDumpedEntityHash.add(hash);
                 const patchedEntity = DumpCommand.patch(configuration.patches || [], entity);
                 if (schemaMap[patchedEntity.schema] !== undefined) patchedEntity.schema = schemaMap[patchedEntity.schema];
                 process.stdout.write(mysqlDumper.generateInsertStatment(patchedEntity) + ';\n');
@@ -135,7 +138,7 @@ export default class DumpCommand {
             }
         }
 
-        async function processSql(sql) {
+        async function processSql(sql: string) {
             if (alreadyProcessedSql.has(sql)) return; // Prevents infinite loops
             alreadyProcessedSql.add(sql);
 
@@ -144,10 +147,6 @@ export default class DumpCommand {
             const entities = await mysqlConnector.fetchEntities(sql);
             let batch: Array<Entity> = [];
             for await (const entity of entities) {
-                const hash = DumpCommand.generateEntityHash(entity);
-                if (alreadyFetchedEntityHash.has(hash)) continue;
-                alreadyFetchedEntityHash.add(hash);
-
                 stats.fetchedCount++;
                 if ((batch.length === 0 || (batch[0].schema === entity.schema && batch[0].table === entity.table))
                     && batch.length < maxBatchSize

@@ -20,6 +20,7 @@ export default class MysqlRelationsFinder {
 
         // Needed relations extracted from the DB's foreign keys
         const pFkRelations = this.findForeignKeyRelations(schema, table);
+
         // Needed relations from the config
         const relations = configPreRequisites.filter(
             (relation: string) => !!relation.match(new RegExp(`\{\{(?:(?<schema>${schema})\\.)?(?<table>${table})\\.(?<column>.+?)\}\}`))
