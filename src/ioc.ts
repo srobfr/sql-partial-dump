@@ -1,10 +1,10 @@
-import Bootstrap from "./components/Bootstrap";
-import CmdLineParser from "./components/CmdLineParser";
-import DumpCommand from "./components/commands/DumpCommand";
-import MysqlConnector from "./components/db/mysql/MysqlConnector";
-import MysqlRelationsFinder from "./components/db/mysql/MysqlRelationsFinder";
-import MysqlDumper from "./components/db/mysql/MysqlDumper";
-import EmptyCommand from "./components/commands/EmptyCommand";
+import Bootstrap from "./components/Bootstrap.js";
+import CmdLineParser from "./components/CmdLineParser.js";
+import DumpCommand from "./components/commands/DumpCommand.js";
+import MysqlConnector from "./components/db/mysql/MysqlConnector.js";
+import MysqlRelationsFinder from "./components/db/mysql/MysqlRelationsFinder.js";
+import MysqlDumper from "./components/db/mysql/MysqlDumper.js";
+import EmptyCommand from "./components/commands/EmptyCommand.js";
 
 /**
  * IOC configuration

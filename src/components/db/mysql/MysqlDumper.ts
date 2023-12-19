@@ -1,7 +1,8 @@
-import MysqlConnector from "./MysqlConnector";
+import MysqlConnector from "./MysqlConnector.js";
 import {Entity} from "../types";
+import Debug from "debug"
 
-const debug = require('debug')('sql-partial-dump:MysqlDumper');
+const debug = Debug('sql-partial-dump:MysqlDumper');
 
 /**
  * Finds the relations in a Mysql database (from foreign keys).

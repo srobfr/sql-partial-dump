@@ -144,7 +144,8 @@ export default class DumpCommand {
 
             // Fetches entities from DB
             stats.selectQueriesCount++;
-            const entities = await mysqlConnector.fetchEntities(sql);
+            // A bit hackish on types here, see https://github.com/microsoft/TypeScript/issues/39051#issuecomment-1622597485
+            const entities = await mysqlConnector.fetchEntities(sql) as unknown as Array<Entity>;
             let batch: Array<Entity> = [];
             for await (const entity of entities) {
                 stats.fetchedCount++;

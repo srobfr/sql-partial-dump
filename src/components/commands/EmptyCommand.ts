@@ -1,5 +1,5 @@
 import Debug from "debug";
-import MysqlConnector from "../db/mysql/MysqlConnector";
+import MysqlConnector from "../db/mysql/MysqlConnector.js";
 import {DbConnectionConfiguration} from "../db/types";
 
 const debug = Debug('sql-partial-dump:EmptyCommand');

@@ -1,13 +1,15 @@
-import mysql from 'mysql2';
-import {DbConnectionConfiguration, Entity} from "../types";
+import Debug from "debug";
+import mysql, { FieldPacket } from 'mysql2';
+import { Pool } from 'mysql2/typings/mysql/lib/Pool';
+import { DbConnectionConfiguration, Entity } from "../types";
 
-const debug = require('debug')('sql-partial-dump:MysqlConnector');
+const debug = Debug('sql-partial-dump:MysqlConnector');
 
 function isEntityEmpty(entity: Entity) {
-    return !Object.values(entity.data).some(v => v!==null)
+    return !Object.values(entity.data).some(v => v !== null)
 }
 
-async function* fetchEntities(sql: string, pool): AsyncGenerator<Entity, void, unknown> {
+async function fetchEntities(sql: string, pool: Pool): Promise<NodeJS.ReadableStream> {
     debug(`Querying :`, sql);
     const query = pool.query({
         sql: sql,
@@ -21,31 +23,38 @@ async function* fetchEntities(sql: string, pool): AsyncGenerator<Entity, void, u
     });
 
     const entityGeneratorByAliasName = {};
-    const stream = query.stream({highWaterMark: 5});
 
-    await new Promise<void>((resolve, reject) => {
-        query.on('fields', fields => {
-            // Prepare the columns triage
-            for (const f of fields) {
-                // debug(`${f.table}.${f.name} is ${f.schema}.${f.orgTable}.${f.orgName}`);
-                if (entityGeneratorByAliasName[f.table]) continue;
-                entityGeneratorByAliasName[f.table] = row => ({
-                    schema: f.schema,
-                    table: f.orgTable,
-                    data: row,
-                });
-            }
-
-            resolve();
-        });
+    query.on('fields', (fields: Array<FieldPacket>) => {
+        // Prepare the columns triage
+        for (const f of fields) {
+            // debug(`${f.table}.${f.name} is ${f.schema}.${f.orgTable}.${f.orgName}`);
+            if (entityGeneratorByAliasName[f.table]) continue;
+            entityGeneratorByAliasName[f.table] = row => ({
+                schema: f.schema,
+                table: f.orgTable,
+                data: row,
+            });
+        }
     });
 
-    for await (const row of stream) {
+    let controller: ReadableStreamDefaultController;
+    const stream: NodeJS.ReadableStream = new ReadableStream<Entity>({
+        start(_controller) {
+            controller = _controller;
+        }
+    }) as unknown as NodeJS.ReadableStream; // See https://github.com/microsoft/TypeScript/issues/39051#issuecomment-1622597485
+
+    query.on("result", (row) => {
         for (const alias in row) {
             const entity = entityGeneratorByAliasName[alias](row[alias]);
-            if (!isEntityEmpty(entity)) yield entity;
+            if (!isEntityEmpty(entity)) controller.enqueue(entity);
         }
-    }
+    });
+
+    query.once("end", () => controller.close());
+    query.once("error", (err) => controller.error(err));
+
+    return stream;
 }
 
 /**
@@ -61,7 +70,7 @@ export default class MysqlConnector {
      */
     public async open(configuration: DbConnectionConfiguration) {
         debug(`Connecting to Mysql server ${configuration.host}`);
-        const {user, password, host, port, schema: database} = configuration;
+        const { user, password, host, port, schema: database } = configuration;
         this.pool = mysql.createPool({
             user, password, host, port, database,
             connectionLimit: 10,
@@ -78,7 +87,7 @@ export default class MysqlConnector {
         debug(`Closed connections pool to Mysql server`);
     }
 
-    public async fetchEntities(sql: string): Promise<AsyncGenerator<Entity, void, unknown>> {
+    public async fetchEntities(sql: string): Promise<NodeJS.ReadableStream> {
         return fetchEntities(sql, this.pool);
     }
 
@@ -87,6 +96,7 @@ export default class MysqlConnector {
             // Point mysql
             return `ST_GeomFromText('POINT(${value.x} ${value.y})')`;
         }
+        // Add more types here if needed
 
         return mysql.escape(value);
     }

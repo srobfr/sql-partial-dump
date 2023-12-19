@@ -5,6 +5,7 @@ help: ## Shows an help screen
 
 install: ## Install dependancies
 	npm i
+	npm link # So we can use "npx sql-partial-dump" directly
 
 build: ## Builds the distributable code
 	./node_modules/.bin/tsc

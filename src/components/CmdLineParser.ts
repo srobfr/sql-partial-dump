@@ -1,10 +1,11 @@
 import Debug from "debug";
 import {Command} from "./commands/types";
+import yargonaut from "yargonaut"
+import yargs from 'yargs';
 
-require('yargonaut')
+yargonaut
     .helpStyle('green')
     .errorsStyle('red');
-const yargs = require('yargs');
 
 const debug = Debug('sql-partial-dump:CmdLineParser');
 
