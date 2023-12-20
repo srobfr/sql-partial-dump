@@ -1,9 +1,10 @@
 import Debug from "debug";
 import * as path from "path";
-import {DbConnectionConfiguration, Entity} from "../db/types";
+import { DbConnectionConfiguration, Entity } from "../db/types";
 import MysqlConnector from "../db/mysql/MysqlConnector";
 import MysqlRelationsFinder from "../db/mysql/MysqlRelationsFinder";
 import MysqlDumper from "../db/mysql/MysqlDumper";
+import { Patch } from "./types";
 
 const debug = Debug('sql-partial-dump:DumpCommand');
 
@@ -17,13 +18,13 @@ export default class DumpCommand {
     }
 
     private dbConnectionOptions = {
-        user: {alias: 'u', description: `User login for the database connection`, required: true},
-        password: {alias: 'p', description: `Password for the database connection`, required: true},
-        port: {alias: 'P', description: `Port for the database connection`, type: 'number', default: 3306},
-        host: {alias: 'h', description: `Serveur host for the database connection`, default: 'localhost'},
-        schema: {alias: 's', description: `Default db schema (used if not specified in the queries)`},
-        driver: {alias: 'd', description: `Database driver to use`, default: 'mysql', choices: ['mysql', 'sqlite']},
-        schemaMap: {alias: 'm', description: `Schema mapping in "src:target" format`, default: [], type: 'array'},
+        user: { alias: 'u', description: `User login for the database connection`, required: true },
+        password: { alias: 'p', description: `Password for the database connection`, required: true },
+        port: { alias: 'P', description: `Port for the database connection`, type: 'number', default: 3306 },
+        host: { alias: 'h', description: `Serveur host for the database connection`, default: 'localhost' },
+        schema: { alias: 's', description: `Default db schema (used if not specified in the queries)` },
+        driver: { alias: 'd', description: `Database driver to use`, default: 'mysql', choices: ['mysql', 'sqlite'] },
+        schemaMap: { alias: 'm', description: `Schema mapping in "src:target" format`, default: [], type: 'array' },
     };
 
     public setup(yargs) {
@@ -31,8 +32,8 @@ export default class DumpCommand {
             'dump <configFile>',
             `Dumps data from a database.`,
             {
-                configFile: {description: `Path for the configuration file`},
-                verbose: {alias: 'v', description: `Enables progress message on stderr`},
+                configFile: { description: `Path for the configuration file` },
+                verbose: { alias: 'v', description: `Enables progress message on stderr` },
                 ...this.dbConnectionOptions,
             },
             argv => this.execute(argv));
@@ -46,20 +47,20 @@ export default class DumpCommand {
 
     private async execute(argv) {
         // Open readonly connection to DB
-        const {user, password, host, port, schema, schemaMap: _schemaMap} = argv;
+        const { user, password, host, port, schema, schemaMap: _schemaMap } = argv;
 
-        const schemaMap = {schema: null};
+        const schemaMap = { schema: null };
         for (const sm of _schemaMap) {
             const m = sm.match(/^(?<from>.*?):(?<to>.*?)$/);
             if (!m) throw new Error(`schemaMap arg must contain a ':'`);
-            const {from, to} = m.groups;
+            const { from, to } = m.groups;
             schemaMap[from || ''] = to || '';
         }
 
         debug(argv);
         const progressLog = argv.verbose
             ? (text, goToLineStart) => process.stderr.write(text + (goToLineStart ? '\r' : '\n'))
-            : () => {};
+            : () => { };
 
         const stats = {
             startTime: new Date().getTime(),
@@ -83,22 +84,22 @@ export default class DumpCommand {
 
         const statInterval = setInterval(() => showStats(true), 100);
 
-        const connectionConfig: DbConnectionConfiguration = {user, password, host, port, schema};
+        const connectionConfig: DbConnectionConfiguration = { user, password, host, port, schema };
         await this.mysqlConnector.open(connectionConfig);
 
         const configuration = await import(path.resolve(argv.configFile));
         const queries = [...configuration.queries];
 
-        const {mysqlConnector, mysqlRelationsFinder, mysqlDumper} = this;
+        const { mysqlConnector, mysqlRelationsFinder, mysqlDumper } = this;
         const maxBatchSize = 50;
         const alreadyProcessedSql = new Set<string>();
         const alreadyDumpedEntityHash = new Set<string>();
 
         function relationToSql(relation: string, batch: Array<Entity>): string {
-            const {schema, table} = batch[0];
+            const { schema, table } = batch[0];
             const re = new RegExp(`\{\{(?:(?<schema>${schema})\\.)?(?<table>${table})\\.(?<column>.+?)\}\}`);
             return relation.replace(re, (...args): string => {
-                const {column} = args.pop();
+                const { column } = args.pop();
                 return Array.from(
                     new Set<string>(
                         batch.map(entity => mysqlConnector.escapeValue(entity.data[column]))
@@ -108,7 +109,7 @@ export default class DumpCommand {
         }
 
         async function processBatch(batch: Array<Entity>) {
-            const {schema, table} = batch[0];
+            const { schema, table } = batch[0];
 
             {   // Find preprequisites relations (=entities that must be dumped before this one)
                 const preRequisites = await mysqlRelationsFinder.findPreRequisites(schema, table, configuration.preRequisites || []);
@@ -177,10 +178,15 @@ export default class DumpCommand {
         showStats(false);
     }
 
-    private static patch(patchConfigs: Array<{schema?: string, table: string, patch: Function}>, entity: Entity): Entity {
-        const e: Entity = {schema: entity.schema, table: entity.table, data: {...entity.data}}; // Clone
+    private static patch(patchConfigs: Array<Patch>, entity: Entity): Entity {
+        let e: Entity = { schema: entity.schema, table: entity.table, data: { ...entity.data } }; // Clone
         for (const patch of patchConfigs) {
-            if ((!patch.schema || patch.schema === e.schema) && patch.table === e.table) e.data = patch.patch(e.data);
+            if (typeof patch === "function") {
+                e = (patch(e) ?? e) as Entity
+            }
+            else if ((!patch.schema || patch.schema === e.schema) && patch.table === e.table) {
+                e.data = patch.patch(e.data);
+            }
         }
         return e;
     }
